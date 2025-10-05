@@ -15,19 +15,25 @@ def read_dxf_lines(file_path):
     return lines
 
 
-
+colors = [(1,0,0),(0,1,0),(0,0,1)]
 
 def plot_lines(lines):
-    colorr = 0
-    colorg = 0
-    colorb = 0
-    plt.figure(figsize=(8, 8))
+    # colorr = 0
+    # colorg = 0
+    # colorb = 0
     
+    
+    
+    plt.figure(figsize=(8, 8))
+    it = 0
     for line in lines:
         start = line['start']
         end = line['end']
-
-        plt.plot([start[0], end[0]], [start[1], end[1]],color= (colorr/255,colorg/255,colorb/255))
+        print("point ",start,end)
+        plt.plot([start[0], end[0]], [start[1], end[1]],color= colors[it])
+        it +=1
+        if it == 3:
+            it = 0
         # if colorr<255:
         #     colorr +=255
         # elif colorg<255:
@@ -44,9 +50,11 @@ def plot_lines(lines):
     plt.ylabel('Y')
     plt.grid()
     plt.axis('equal')  
-    plt.show()
 
-file_path = 'dada.dxf'
+    plt.show()
+    plt.close()
+
+file_path = 'asd.dxf'
 lines = read_dxf_lines(file_path)
 print(len(lines))
 plot_lines(lines)
