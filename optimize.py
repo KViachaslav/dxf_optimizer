@@ -1,7 +1,34 @@
 import ezdxf
 import svgwrite
+import math
 
-def dxf_to_svg(dxf_file, svg_file):
+
+def distance(point1, point2):
+    return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
+
+def find_closest_point(lines, target_point,nums):
+    closest_point = None
+    min_distance = float('inf')
+    I = 0
+    i = 0
+    mode = 1
+    for line in lines:
+        if i in nums:
+            m = 1
+            for point in [line['start'], line['end']]:
+                dist = distance(point, target_point)
+                if dist < min_distance:
+                    min_distance = dist
+                    closest_point = point
+                    mode = m
+                    I = i
+                m = 0
+            
+        i += 1
+
+    return closest_point,I,mode
+
+def dxf_to_svg(dxf_file, svg_file): 
 
     doc = ezdxf.readfile(dxf_file)
     dwg = svgwrite.Drawing(svg_file, profile='tiny')
@@ -12,6 +39,7 @@ def dxf_to_svg(dxf_file, svg_file):
         dwg.add(dwg.line(start=(start.x, start.y), end=(end.x, end.y), stroke=svgwrite.rgb(0, 0, 0, '%')))
 
     dwg.save()
+
 def read_dxf_lines(file_path):
     doc = ezdxf.readfile(file_path)
     msp = doc.modelspace()
@@ -31,41 +59,31 @@ def create_continuous_lines(file_path_out, lines):
 
     if not lines:
         return
-    msp.add_line(lines[0]['start'], lines[0]['end'])
     nums = set(range(len(lines)))
+
+    p,i,m = find_closest_point(lines,(0,0),range(len(lines)))
     
-    current_start = lines[0]['end']
-    nums.remove(0)
-    print(lines[0]['start'], lines[0]['end'])
+    if m:
+        msp.add_line(lines[i]['start'], lines[i]['end'])
+        current_start = lines[i]['end']
+    else:
+        msp.add_line(lines[i]['end'], lines[i]['start'])
+        current_start = lines[i]['start']
+    nums.remove(i)
+    
     
     while nums:
-        fl = True
-        for i in nums:
+        p,j,m = find_closest_point(lines,current_start,nums)
 
-            if abs(lines[i]['start'][0] - current_start[0]) < 0.0000001 and abs(lines[i]['start'][1] - current_start[1]) < 0.0000001:
-                #print(lines[i]['start'], lines[i]['end'])
-                msp.add_line(current_start, lines[i]['end'])
-                current_start = lines[i]['end']
-                nums.remove(i)
-                fl = False
-                break
-            elif abs(lines[i]['end'][0] - current_start[0]) < 0.0000001 and abs(lines[i]['end'][1] - current_start[1]) < 0.0000001:
-                #print(lines[i]['start'], lines[i]['end'])
-                msp.add_line( current_start,lines[i]['start'])
-                current_start = lines[i]['start']
-                nums.remove(i)
-                fl = False
-                break
-        if fl: 
-            i = next(iter(nums))
-            msp.add_line(lines[i]['start'], lines[i]['end'])
-            nums.remove(i)
+        if m:
+            msp.add_line(lines[j]['start'], lines[j]['end'])
+            current_start = lines[j]['end']
+        else:
+            msp.add_line(lines[j]['end'], lines[j]['start'])
+            current_start = lines[j]['start']
 
+        nums.remove(j)
 
-
-        
-
-    
     doc.saveas(file_path_out)
 
 input_file = 'Sss.dxf' 
@@ -73,7 +91,5 @@ output_file = 'asd.dxf'
 
 lines = read_dxf_lines(input_file)
 
-#print(lines)
 create_continuous_lines(output_file, lines)
 dxf_to_svg(output_file, 'output.svg')
-print(f"Новый файл с непрерывными линиями сохранён как: {output_file}")
