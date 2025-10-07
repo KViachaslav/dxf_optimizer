@@ -3,7 +3,8 @@ import dearpygui.dearpygui as dpg
 import ezdxf
 import math
 import svgwrite
-import optimize
+import test_G_code
+import numpy as np
 dpg.create_context()
 
 DEFAULT_LINE_COLOUR = (125, 255, 0,255)
@@ -66,7 +67,18 @@ with dpg.theme() as coloured_Core_theme5:
         coloured_core_component51= dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 69, 0, 255 ), category=dpg.mvThemeCat_Core)
 
 
+def arc_to_lines(center, radius, start_angle, end_angle, num_segments):
+    # Преобразование углов из градусов в радианы
+    start_angle_rad = np.radians(start_angle)
+    end_angle_rad = np.radians(end_angle)
 
+    # Создание массива углов
+    angles = np.linspace(start_angle_rad, end_angle_rad, num_segments + 1)
+
+    # Вычисление координат точек на дуге
+    points = [(center[0] + radius * np.cos(angle), center[1] + radius * np.sin(angle)) for angle in angles]
+    
+    return points
 def read_dxf_lines(file_path):
     
     doc = ezdxf.readfile(file_path)
@@ -78,7 +90,27 @@ def read_dxf_lines(file_path):
             'start': (line.dxf.start.x, line.dxf.start.y),
             'end': (line.dxf.end.x, line.dxf.end.y)
         })
+    for acdb_line in msp.query('AcDbLine'):
+        lines.append({
+            'start': (acdb_line.dxf.start.x, acdb_line.dxf.start.y),
+            'end': (acdb_line.dxf.end.x, acdb_line.dxf.end.y)
+        })
 
+    for arc in msp.query('ARC'):
+        center = arc.dxf.center  # Центр арки
+        radius = arc.dxf.radius   # Радиус
+        start_angle = arc.dxf.start_angle  # Начальный угол
+        end_angle = arc.dxf.end_angle
+        if radius<10:
+            points = arc_to_lines(center, radius, start_angle, end_angle,10)
+        else:
+            points = arc_to_lines(center, radius, start_angle, end_angle,50)
+        
+        for i in range(len(points)-1):
+            lines.append({
+            'start': (points[i][0], points[i][1]),
+            'end': (points[i+1][0], points[i+1][1])
+        })
     return lines
 def change_colour(_, rgba_values):
     dpg.set_value(components[0], [value*255 for value in rgba_values])
@@ -199,7 +231,8 @@ def save_dxf():
             sett.remove(j)
 
     doc.saveas('out.dxf')
-    dxf_to_svg('out.dxf','100.svg')
+    test_G_code.dxf_to_gcode('out.dxf','100.gcode')
+    #dxf_to_svg('out.dxf','100.svg')
 def load_dxf():
         dpg.show_item("file_dialog_id")
 
