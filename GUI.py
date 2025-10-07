@@ -2,6 +2,8 @@
 import dearpygui.dearpygui as dpg
 import ezdxf
 import math
+import svgwrite
+import optimize
 dpg.create_context()
 
 DEFAULT_LINE_COLOUR = (125, 255, 0,255)
@@ -66,6 +68,7 @@ with dpg.theme() as coloured_Core_theme5:
 
 
 def read_dxf_lines(file_path):
+    
     doc = ezdxf.readfile(file_path)
     msp = doc.modelspace()
     lines = []
@@ -151,6 +154,19 @@ def find_closest_point(lines, target_point,nums):
 
 
     return closest_point,I,mode,lins
+
+def dxf_to_svg(dxf_file, svg_file): 
+
+    doc = ezdxf.readfile(dxf_file)
+    dwg = svgwrite.Drawing(svg_file, profile='tiny')
+
+    for entity in doc.modelspace().query('LINE'):
+        start = entity.dxf.start
+        end = entity.dxf.end
+        dwg.add(dwg.line(start=(start.x, start.y), end=(end.x, end.y), stroke=svgwrite.rgb(0, 0, 0, '%')))
+
+    dwg.save()
+
 def save_dxf():
     global ts
     global lines
@@ -183,7 +199,7 @@ def save_dxf():
             sett.remove(j)
 
     doc.saveas('out.dxf')
-
+    dxf_to_svg('out.dxf','100.svg')
 def load_dxf():
         dpg.show_item("file_dialog_id")
 

@@ -86,10 +86,10 @@ def create_continuous_lines(file_path_out, lines):
 
     doc.saveas(file_path_out)
 
-input_file = 'Sss.dxf' 
-output_file = 'asd.dxf'  
+input_file = 'D:\\100.dxf' 
+output_file = 'D:\\100.dxf'  
 
 lines = read_dxf_lines(input_file)
 
 create_continuous_lines(output_file, lines)
-dxf_to_svg(output_file, 'output.svg')
+dxf_to_svg(output_file, '100.svg')
