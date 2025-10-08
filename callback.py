@@ -25,6 +25,41 @@ def arc_to_lines(center, radius, start_angle, end_angle, num_segments):
 
     points = [(center[0] + radius * np.cos(angle), center[1] + radius * np.sin(angle)) for angle in angles]
     return points
+def extract_black_lines(image_path, pixel_distance):
+    # Открываем изображение
+    img = Image.open(image_path).convert('L')  # Конвертируем в градации серого
+    img_array = np.array(img)
+
+    # Получаем высоту и ширину изображения
+    height, width = img_array.shape
+
+    # Инициализируем массив линий
+    lines = []
+    tss = []
+    # Проходим по каждому ряду изображения
+    for y in range(height):
+        start = None
+        for x in range(0, width):
+            
+            if img_array[y, x] < 128:  
+                if start is None:
+                    start = (x, y) 
+            else:
+                if start is not None:
+                    # Если нашли конец линии, добавляем ее
+                    #lines.append((start, (x - pixel_distance, y)))
+                    lines.append({
+                    'start': (start[0]*pixel_distance, start[1]*pixel_distance),
+                    'end': (x*pixel_distance, y*pixel_distance)
+                    })
+                    print(start[0], start[1])
+                    tss.append(0)
+                    start = None
+        # Проверяем, есть ли незавершенная линия в конце ряда
+        if start is not None:
+            lines.append((start, (width - pixel_distance, y)))
+
+    return lines,tss
 def read_dxf_lines(file_path):
     dpg.set_value('file',file_path)
     tss = []

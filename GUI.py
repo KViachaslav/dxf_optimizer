@@ -4,7 +4,7 @@ import dearpygui.dearpygui as dpg
 
 from fdialog import FileDialog
 from PIL import Image
-from callback import save_dxf,save_as_gcode,print_me,check_callback,find_closest_point,read_dxf_lines,callback_to_gcode
+from callback import save_dxf,save_as_gcode,print_me,check_callback,find_closest_point,read_dxf_lines,callback_to_gcode,extract_black_lines
 import callback
 import numpy as np
 import optimize
@@ -57,13 +57,10 @@ def pr(selected_files):
     
         plot_dxf(current_file)
     if '.png' in current_file:
-        print(current_file)
-        width, height, channels, data = dpg.load_image('C:\\Users\\kachan\\Desktop\\10лет.png')
 
-        with dpg.texture_registry(show=True):
-            dpg.add_static_texture(width=width, height=height, default_value=data, tag="texture_tag")
-            dpg.add_image("texture_tag",parent='plot')
-
+        callback.lines,callback.ts = extract_black_lines(current_file,0.1)
+        print(callback.lines)
+        redraw()
 
 
 
