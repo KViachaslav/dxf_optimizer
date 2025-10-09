@@ -1,46 +1,39 @@
-from PIL import Image
-import numpy as np
-
-def extract_black_lines(image_path, pixel_distance):
-    # Открываем изображение
-    img = Image.open(image_path).convert('L')  # Конвертируем в градации серого
-    img_array = np.array(img)
-
-    # Получаем высоту и ширину изображения
-    height, width = img_array.shape
-
-    # Инициализируем массив линий
-    lines = []
-
-    # Проходим по каждому ряду изображения
-    for y in range(height):
-        start = None
-        for x in range(0, width):
-            
-            if img_array[y, x] < 128:  
-                if start is None:
-                    start = (x, y) 
-            else:
-                if start is not None:
-                    # Если нашли конец линии, добавляем ее
-                    #lines.append((start, (x - pixel_distance, y)))
-                    lines.append({
-                    'start': (start[0], start[1]),
-                    'end': (x - pixel_distance, y)
-                    })
-                    start = None
-        # Проверяем, есть ли незавершенная линия в конце ряда
-        if start is not None:
-            lines.append((start, (width - pixel_distance, y)))
-
-    return lines
-
-
-image_path = 'im2.png'
-pixel_distance = 1 
-black_lines = extract_black_lines(image_path, pixel_distance)
+import dearpygui.dearpygui as dpg
 
 
 
-for i, line in enumerate(black_lines):
-    print(f'Line {i}: Start {line[0]}, End {line[1]}')
+state = False
+def button_callback(sender, app_data):
+  global state
+  state = not state
+
+  dpg.bind_item_theme(sender, enabled_theme if state else disabled_theme)
+
+
+dpg.create_context()
+
+with dpg.theme() as enabled_theme:
+    with dpg.theme_component(dpg.mvAll):
+        dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255), category=dpg.mvThemeCat_Core)
+
+
+with dpg.theme() as disabled_theme:
+    with dpg.theme_component(dpg.mvAll):
+        dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 0, 0), category=dpg.mvThemeCat_Core)
+dpg.create_viewport(title='Toggle Button Example', width=400, height=200)
+
+
+
+
+with dpg.window(pos=(0,0),width=900, height=725,tag='papa'):
+    dpg.add_button(label="Some label", callback=button_callback)
+
+
+
+
+
+dpg.create_viewport()
+dpg.setup_dearpygui()
+dpg.show_viewport()
+dpg.start_dearpygui()
+dpg.destroy_context()
