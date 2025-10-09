@@ -90,6 +90,172 @@ def extract_black_lines(image_path, pixel_distance):
             liness.append((start, (width - pixel_distance, y)))
 
     return liness,tsss,active_objj,ob
+
+
+def calculate_boundary_coordinates(x1, y1, x2, y2, width):
+    # Вычисление вектора линии
+    dx = x2 - x1
+    dy = y2 - y1
+    
+    # Длина вектора
+    d = math.sqrt(dx**2 + dy**2)
+    
+    # Нормализованный вектор
+    if d == 0:
+        raise ValueError("Начало и конец линии совпадают")
+    
+    ux = dx / d
+    uy = dy / d
+    
+    # Перпендикулярный вектор
+    nx, ny = -uy, ux  # Поворот на 90 градусов
+    
+    # Вычисление координат границ
+    half_width = width / 2
+    
+    left_start = (x1 + half_width * nx, y1 + half_width * ny)
+    right_start = (x1 - half_width * nx, y1 - half_width * ny)
+    
+    left_end = (x2 + half_width * nx, y2 + half_width * ny)
+    right_end = (x2 - half_width * nx, y2 - half_width * ny)
+    
+    return {
+        "left_start": left_start,
+        "right_start": right_start,
+        "left_end": left_end,
+        "right_end": right_end
+    }
+
+
+
+def read_dxf_lines_from_esyeda(file_path):
+    global active_obj
+    
+
+    nice_path = file_path
+    iter = 1
+    while 1:
+        for i in active_obj:
+            if i['tag'] == nice_path:
+                nice_path = file_path + f' (copy {iter})'
+                iter +=1
+        else: 
+            break
+
+    print(iter, nice_path)
+    
+    dpg.add_button(label=os.path.basename(file_path) + f" (copy {iter-1})",parent='butonss',tag=nice_path,callback=active_but)
+    active_obj.append({'tag':nice_path,
+                        'bool':0})
+    
+    tss = []
+    doc = ezdxf.readfile(file_path)
+    msp = doc.modelspace()
+    lines = []
+    objectss = []
+    for line in msp.query('LINE'):
+        lines.append({
+            'start': (line.dxf.start.x, line.dxf.start.y),
+            'end': (line.dxf.end.x, line.dxf.end.y)
+        })
+        tss.append(0)
+        objectss.append(nice_path)
+    for acdb_line in msp.query('AcDbLine'):
+        lines.append({
+            'start': (acdb_line.dxf.start.x, acdb_line.dxf.start.y),
+            'end': (acdb_line.dxf.end.x, acdb_line.dxf.end.y)
+        })
+        tss.append(0)
+        objectss.append(nice_path)
+    for arc in msp.query('ARC'):
+        center = arc.dxf.center  # Центр арки
+        radius = arc.dxf.radius   # Радиус
+        start_angle = arc.dxf.start_angle  # Начальный угол
+        end_angle = arc.dxf.end_angle
+        if radius<10:
+            points = arc_to_lines(center, radius, start_angle, end_angle,10)
+        else:
+            points = arc_to_lines(center, radius, start_angle, end_angle,50)
+        
+        for i in range(len(points)-1):
+            lines.append({
+            'start': (points[i][0], points[i][1]),
+            'end': (points[i+1][0], points[i+1][1])
+            })
+            tss.append(0)
+            objectss.append(nice_path)
+    for circle in msp.query('CIRCLE'):
+        center = circle.dxf.center 
+        radius = circle.dxf.radius  
+        num_points = 50  
+
+        
+        points = [
+            (
+                center.x + radius * math.cos(2 * math.pi * i / num_points),
+                center.y + radius * math.sin(2 * math.pi * i / num_points)
+            )
+            for i in range(num_points)
+        ]
+
+        
+        for i in range(len(points)):
+            lines.append({
+                'start': (points[i][0], points[i][1]),
+                'end': (points[(i + 1) % num_points][0], points[(i + 1) % num_points][1])
+            })
+            tss.append(0)
+            objectss.append(nice_path)
+    for polyline in msp.query('LWPOLYLINE'):
+        w = polyline.dxf.const_width
+        
+        points = polyline.get_points()  
+        for i in range(len(points) - 1):
+            boundaries = calculate_boundary_coordinates(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1], w)
+            lines.append({
+                'start': (points[i][0], points[i][1]),
+                'end': (points[i + 1][0], points[i + 1][1])
+            })
+            tss.append(0)
+            objectss.append(nice_path)
+            lines.append({
+                'start': (boundaries['left_start'][0], boundaries['left_start'][1]),
+                'end': (boundaries['left_end'][0],boundaries['left_end'][1])
+            })
+            tss.append(0)
+            objectss.append(nice_path)
+            lines.append({
+                'start': (boundaries['right_start'][0], boundaries['right_start'][1]),
+                'end': (boundaries['right_end'][0],boundaries['right_end'][1])
+            })
+            tss.append(0)
+            objectss.append(nice_path)
+    for hatch in msp.query('HATCH'):
+        for path in hatch.paths:
+        
+            points = path.vertices
+            # print(points)
+            lines.append({
+                'start': (points[0][0], points[0][1]),
+                'end': (points[1][0],points[1][1])
+            })
+            tss.append(3)
+            objectss.append(nice_path)
+    return lines,tss,objectss
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def read_dxf_lines(file_path):
     global active_obj
     
@@ -1589,35 +1755,13 @@ def redraw():
         else:
             dpg.bind_item_theme(dpg.last_item(), themes[ts[i]])
 
-def plot_dxf(file_path):
-    global lines
-    global ts
-    global objects
-    global active_obj
-    if dpg.get_value('eraseold'):
-        
-        for i in active_obj:
-            dpg.delete_item(i['tag'])
-        lines = []
-        ts = []
-        active_obj = []
-        objects = []
-        lines,ts,objects  = read_dxf_lines(file_path)
-    else:
-        li,t,obje  = read_dxf_lines(file_path)
-        
-        lines+=li
-        ts+=t
-        
-        objects+=obje
-        
-    redraw()
+
 
 def optimize_():
     
     
     optimize.create_continuous_lines('temp.dxf',lines )
-    plot_dxf('temp.dxf')
+    #plot_dxf('temp.dxf')
 
 def normal_():
     normalize_lines(lines)
@@ -1663,25 +1807,72 @@ def invers_lines(lines):
         })
     
     return normalized_lines
+def esy_eda(selected_files):
+    current_file = selected_files[0]
+    global lines
+    global ts
+    global objects
+    global active_obj
+    if dpg.get_value('eraseold'):
+        
+        for i in active_obj:
+            dpg.delete_item(i['tag'])
+        lines = []
+        ts = []
+        active_obj = []
+        objects = []
+        lines,ts,objects  = read_dxf_lines_from_esyeda(current_file)
+    else:
+        li,t,obje  = read_dxf_lines_from_esyeda(current_file)
+        
+        lines+=li
+        ts+=t
+        
+        objects+=obje
+        
+    redraw()
+
 
 def pr(selected_files):
     
     current_file = selected_files[0]
-    if '.dxf' in current_file:
-    
-        plot_dxf(current_file)
+    global lines
+    global ts
+    global objects
+    global active_obj
+    global esyedaflag
+    if '.dxf' in current_file: 
+        if dpg.get_value('eraseold'):
+            
+            for i in active_obj:
+                dpg.delete_item(i['tag'])
+            # lines = []
+            # ts = []
+            active_obj = []
+            # objects = []
+            if esyedaflag:
+                esyedaflag = False
+                lines,ts,objects  = read_dxf_lines_from_esyeda(current_file)
+            else:
+                lines,ts,objects  = read_dxf_lines(current_file)
+        else:
+            li,t,obje  = read_dxf_lines(current_file)
+            
+            lines+=li
+            ts+=t
+            
+            objects+=obje
+            
+        redraw()
     if '.png' in current_file:
-        global lines
-        global ts
-        global active_obj
-        global objects
+        
         if dpg.get_value('eraseold'):
             for i in active_obj:
                 dpg.delete_item(i['tag'])
-                lines = []
-                ts = []
-                active_obj = []
-                objects = []
+                # lines = []
+                # ts = []
+                # active_obj = []
+                # objects = []
 
             
             lines,ts,active_obj,objects = extract_black_lines(current_file,0.1)
@@ -1705,6 +1896,11 @@ def test_callback():
 ####################################################
 ####################################################
 ####################################################
+
+def esye():
+    global esyedaflag
+    fd.show_file_dialog()
+    esyedaflag = True
 dpg.create_context()
 
 X_AXIS_TAG = "x_axis_tag"
@@ -1717,7 +1913,7 @@ lines =[]
 ts = []
 objects = []
 active_obj = []
-
+esyedaflag = False
 with dpg.theme(tag="coloured_line_theme1") as coloured_line_theme1:
     with dpg.theme_component():
         coloured_line_component1 = dpg.add_theme_color(dpg.mvPlotCol_Line, (0, 191, 255, 255), category=dpg.mvThemeCat_Plots)
@@ -1785,10 +1981,12 @@ with dpg.theme() as disabled_theme:
         dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 0, 0), category=dpg.mvThemeCat_Core)
 
 fd = FileDialog(callback=pr, show_dir_size=False, modal=False, allow_drag=False,width=800,height=400,filter_list=[".dxf",".png"],)
+#fd_esyeda = FileDialog(callback=esy_eda)
 
 with dpg.viewport_menu_bar():
     with dpg.menu(label="File"):
         dpg.add_menu_item(label="Open", callback=fd.show_file_dialog)
+        dpg.add_menu_item(label="Open DXF from EsyEDA", callback=esye)
         dpg.add_menu_item(label="Save As Gcode", callback=save_as_gcode)
         dpg.add_menu_item(label="Save As", callback=save_dxf)
         
@@ -1810,6 +2008,7 @@ with dpg.viewport_menu_bar():
 
 
 with dpg.window(pos=(0,0),width=900, height=725,tag='papa'):
+    
     with dpg.group(horizontal=True):
         with dpg.group():
             # with dpg.file_dialog(directory_selector=False, show=False, callback=callback_, id="file_dialog_id", width=700 ,height=400):
@@ -1884,7 +2083,7 @@ dpg.bind_item_handler_registry(plot, registry)
 dpg.add_window(pos=(900,0),width=200, height=725,tag='butonss',label='lines')
    
 
-dpg.create_viewport(width=1115, height=785, title="Plot Update Line Colour")
+dpg.create_viewport(width=1115, height=785, title="GCODE IDE")
 dpg.setup_dearpygui()
 dpg.show_viewport()
 dpg.start_dearpygui()
