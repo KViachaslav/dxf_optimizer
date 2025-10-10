@@ -44,7 +44,7 @@ def arc_to_lines(center, radius, start_angle, end_angle, num_segments):
 def extract_black_lines(image_path, pixel_distance):
     active_objj = []
     ob = []
-    nice_path = image_path
+    nice_path = os.path.basename(image_path)
     iter = 1
     while 1:
         for i in active_obj:
@@ -132,7 +132,7 @@ def read_dxf_lines_from_esyeda(file_path):
     global active_obj
     
 
-    nice_path = file_path
+    nice_path = os.path.basename(file_path)
     iter = 1
     while 1:
         for i in active_obj:
@@ -142,8 +142,6 @@ def read_dxf_lines_from_esyeda(file_path):
         else: 
             break
 
-    print(iter, nice_path)
-    
     dpg.add_button(label=os.path.basename(file_path) + f" (copy {iter-1})",parent='butonss',tag=nice_path,callback=active_but)
     active_obj.append({'tag':nice_path,
                         'bool':0})
@@ -234,7 +232,7 @@ def read_dxf_lines_from_esyeda(file_path):
         for path in hatch.paths:
         
             points = path.vertices
-            # print(points)
+
             lines.append({
                 'start': (points[0][0], points[0][1]),
                 'end': (points[1][0],points[1][1])
@@ -260,17 +258,17 @@ def read_dxf_lines(file_path):
     global active_obj
     
 
-    nice_path = file_path
+    nice_path = os.path.basename(file_path)
     iter = 1
     while 1:
         for i in active_obj:
             if i['tag'] == nice_path:
-                nice_path = file_path + f' (copy {iter})'
+                nice_path = os.path.basename(file_path) + f' (copy {iter})'
                 iter +=1
         else: 
             break
 
-    print(iter, nice_path)
+
     
     dpg.add_button(label=os.path.basename(file_path) + f" (copy {iter-1})",parent='butonss',tag=nice_path,callback=active_but)
     active_obj.append({'tag':nice_path,
@@ -288,6 +286,50 @@ def read_dxf_lines(file_path):
         })
         tss.append(0)
         objectss.append(nice_path)
+
+    
+    hlines = []
+    for line in msp.query('3DFACE'):
+        hlines.append({
+            'start': (line.dxf.vtx0[0], line.dxf.vtx0[1]),
+            'end': (line.dxf.vtx1[0], line.dxf.vtx1[1])
+        })
+        
+        hlines.append({
+            'start': (line.dxf.vtx1[0], line.dxf.vtx1[1]),
+            'end': (line.dxf.vtx2[0], line.dxf.vtx2[1])
+        })
+        
+        hlines.append({
+            'start': (line.dxf.vtx2[0], line.dxf.vtx2[1]),
+            'end': (line.dxf.vtx0[0], line.dxf.vtx0[1])
+        })
+        
+    sett = {i for i in range(len(hlines))}
+    settt = []
+    while sett:
+        found = False
+        for i in sett:
+            for j in sett:
+                if i != j:
+                    if (abs(hlines[i]['start'][0] - hlines[j]['start'][0])<0.0001 and abs(hlines[i]['start'][1] - hlines[j]['start'][1])<0.0001 and abs(hlines[i]['end'][0] - hlines[j]['end'][0])<0.0001 and abs(hlines[i]['end'][1] - hlines[j]['end'][1])<0.0001) or (abs(hlines[i]['start'][0] - hlines[j]['end'][0])<0.0001 and abs(hlines[i]['start'][1] - hlines[j]['end'][1])<0.0001 and abs(hlines[j]['start'][0] - hlines[i]['end'][0])<0.0001 and abs(hlines[j]['start'][1] - hlines[i]['end'][1])<0.0001):
+                        sett.remove(i)
+                        sett.remove(j)
+                        found = True
+                        break
+            if found:
+                break
+            settt.append(i)
+            sett.remove(i)
+            break
+        
+    for i in settt:
+        
+        lines.append(hlines[i])
+        tss.append(0)
+        objectss.append(nice_path)
+
+
     for acdb_line in msp.query('AcDbLine'):
         lines.append({
             'start': (acdb_line.dxf.start.x, acdb_line.dxf.start.y),
@@ -335,32 +377,22 @@ def read_dxf_lines(file_path):
             tss.append(0)
             objectss.append(nice_path)
     for polyline in msp.query('LWPOLYLINE'):
-        #w = polyline.dxf.const_width
         
         points = polyline.get_points()  
         for i in range(len(points) - 1):
-            #boundaries = test.calculate_boundary_coordinates(points[i][0], points[i][1], points[i + 1][0], points[i + 1][1], w)
+            
             lines.append({
                 'start': (points[i][0], points[i][1]),
                 'end': (points[i + 1][0], points[i + 1][1])
             })
             tss.append(0)
             objectss.append(nice_path)
-            # lines.append({
-            #     'start': (boundaries['left_start'][0], boundaries['left_start'][1]),
-            #     'end': (boundaries['left_end'][0],boundaries['left_end'][1])
-            # })
-            # tss.append(0)
-            # lines.append({
-            #     'start': (boundaries['right_start'][0], boundaries['right_start'][1]),
-            #     'end': (boundaries['right_end'][0],boundaries['right_end'][1])
-            # })
-            # tss.append(0)
+            
     for hatch in msp.query('HATCH'):
         for path in hatch.paths:
         
             points = path.vertices
-            # print(points)
+
             lines.append({
                 'start': (points[0][0], points[0][1]),
                 'end': (points[1][0],points[1][1])
@@ -371,13 +403,13 @@ def read_dxf_lines(file_path):
 
 def distance(point1, point2):
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
-def find_closest_pointt(lines, target_point,nums):
+def find_closest_pointt(lines, target_point,nums):### возвращает точку, индекс линии, старт (1) или конец(0), и растояние до нее  
     closest_point = None
     min_distance = float('inf')
     I = 0
-    i = 0
+    
     mode = 1
-    for line in lines:
+    for i,line in enumerate(lines):
         if i in nums:
             m = 1
             for point in [line['start'], line['end']]:
@@ -389,59 +421,30 @@ def find_closest_pointt(lines, target_point,nums):
                     I = i
                 m = 0
             
-        i += 1
 
-    return closest_point,I,mode
-def find_closest_point(lines, target_point,nums):
-    closest_point = None
-
+    return closest_point,I,mode,min_distance
+def find_closest_lines(lines, target_point,nums):
+    
+    
     Nums = set(nums)
-    min_distance = float('inf')
-    I = 0
-    i = 0
-
     lins = []
-    mode = 1
-    for line in lines:
-        if i in nums:
-            m = 1
-            for point in [line['start'], line['end']]:
-                dist = distance(point, target_point)
-                if dist < min_distance:
-                    min_distance = dist
-                    closest_point = point
-                    mode = m
-                    I = i
-                m = 0
-            
-        i += 1
-    Nums.remove(I)
-    lins.append(I)
-    current_start = closest_point
-    delta = 0.8
-    while Nums:
-        fl = True
-        for i in Nums:
 
-            if abs(lines[i]['start'][0] - current_start[0]) < delta and abs(lines[i]['start'][1] - current_start[1]) < delta:
-                lins.append(i)
-                
-                current_start = lines[i]['end']
-                Nums.remove(i)
-                fl = False
-                break
-            elif abs(lines[i]['end'][0] - current_start[0]) < delta and abs(lines[i]['end'][1] - current_start[1]) < delta:
-                
-                lins.append(i)
-                current_start = lines[i]['start']
-                Nums.remove(i)
-                fl = False
-                break
-        if fl: 
-            break
+    closest_point,I,mode,min_distance = find_closest_pointt(lines, target_point,Nums)
 
+    current_point = closest_point
 
-    return closest_point,I,mode,lins
+    while 1:
+        closest_point,I,mode,min_distance = find_closest_pointt(lines, current_point,Nums)
+
+        if min_distance < 1:
+            Nums.remove(I)
+            lins.append(I)
+            if mode:
+                current_point = lines[I]['end']
+            else:
+                current_point = lines[I]['start']
+        else:
+            return lins
 
 def dxf_to_svg(dxf_file, svg_file): 
 
@@ -458,7 +461,7 @@ def save_as_gcode():
 def callback_to_gcode(sender, app_data, user_data):
     global lines
     global ts
-    #print(lines,ts)
+
 
     current_file = app_data['file_path_name']
     gcode_lines = []
@@ -487,7 +490,7 @@ def callback_to_gcode(sender, app_data, user_data):
         speed = dpg.get_value(f"{h}1_value")
         while sett:
 
-            p,j,m = find_closest_pointt(lines,current_start,sett)
+            p,j,m,d = find_closest_pointt(lines,current_start,sett)
             if abs(current_start[0] - p[0]) > 0.01 or abs(current_start[1] - p[1]) > 0.01:
                 gcode_lines.append(f"S0")
                 gcode_lines.append(f"G0 X{round(p[0],4)} Y{round(p[1],4)}")         
@@ -535,7 +538,7 @@ def save_dxf():
     current_start = (0,0)
     for sett in sets:
         while sett:
-            p,j,m = find_closest_pointt(lines,current_start,sett)
+            p,j,m,d = find_closest_pointt(lines,current_start,sett)
 
             if m:
                 msp.add_line(lines[j]['start'], lines[j]['end'])
@@ -1666,7 +1669,7 @@ def plot_mouse_click_callback():
     x,y = dpg.get_plot_mouse_pos()
     if dpg.get_value('change_order'):
 
-        p,i,m,l = find_closest_point(lines,(x,y),range(len(lines)))
+        l = find_closest_lines(lines,(x,y),range(len(lines)))
         
         if dpg.get_value('1'):
             for j in l:
@@ -1737,7 +1740,7 @@ def plot_mouse_click_callback():
         redraw()
           
 def redraw():
-    print(len(objects),len(lines),len(active_obj))
+
 
     dpg.delete_item(Y_AXIS_TAG, children_only=True, slot=1)
 
@@ -1754,8 +1757,129 @@ def redraw():
             dpg.bind_item_theme(dpg.last_item(), themes[5])
         else:
             dpg.bind_item_theme(dpg.last_item(), themes[ts[i]])
+def set_color():
+    global lines
+    global ts
+    global objects
+    global active_obj
+    for t in active_obj:
+        if t['bool'] == 1:
+            
+            for i,o in enumerate(objects):
+                if o == t['tag']:
+                    if dpg.get_value('1'):
+                        
+                        ts[i] = 0
+                    elif dpg.get_value('2'):
+                        
+                        ts[i] = 1
+                    elif dpg.get_value('3'):
+                        
+                        ts[i] = 2
+                    elif dpg.get_value('4'):
+                        
+                        ts[i] = 3
+                    elif dpg.get_value('5'):
+                       
+                        ts[i] = 4  
+                        
+
+    redraw()
+def delete_l():
+    global lines
+    global ts
+    global objects
+    global active_obj
+
+    deleted_aciv = []
+    for i,t in enumerate(active_obj):
+        if t['bool'] == 1:
+            dpg.delete_item(t['tag'])
+            
+            new_lines = []
+            new_ts = []
+            new_objects = []
+            for i,o in enumerate(objects):
+                if o != t['tag']:    
+                    new_lines.append(lines[i])
+                    new_ts.append(ts[i])
+                    new_objects.append(objects[i])    
+
+            lines = new_lines
+            ts = new_ts
+            objects = new_objects
+        else:
+            deleted_aciv.append(i)
+    new_active_obj = []
+    for i in deleted_aciv:
+        new_active_obj.append(active_obj[i])
+    active_obj = new_active_obj
+    redraw()
 
 
+def split_l():
+    global lines
+    global ts
+    global objects
+    global active_obj
+
+    deleted_aciv = []
+    new_active_obj = []
+    new_lines = []
+    new_ts = []
+    new_objects = []
+    for i,t in enumerate(active_obj):
+        if t['bool'] == 1:
+            dpg.delete_item(t['tag'])
+           
+            lines_for_split = []
+            ts_for_split = []
+           
+            for i,o in enumerate(objects):
+                if o != t['tag']:    
+                    new_lines.append(lines[i])
+                    new_ts.append(ts[i])
+                    new_objects.append(objects[i])    
+                else:
+                    lines_for_split.append(lines[i])
+                    ts_for_split.append(ts[i])
+            sett = {i for i in range(len(lines_for_split))}
+        
+            v = 0
+            while sett:
+                i = next(iter(sett))
+                l = find_closest_lines(lines_for_split,lines_for_split[i]['start'],sett)
+                dpg.add_button(label=t['tag'] + f'__{v}',parent='butonss',tag=t['tag'] + f'__{v}',callback=active_but)
+                new_active_obj.append({'tag':t['tag'] + f'__{v}','bool':0})
+                #new_lines.append(lines_for_split[i])
+                # new_ts.append(ts_for_split[i])
+                # new_objects.append(t['tag'] + f'__{v}')   
+                
+                for h in l:
+                    new_lines.append(lines_for_split[h])
+                    new_ts.append(ts_for_split[h])
+                    new_objects.append(t['tag'] + f'__{v}')   
+                    sett.remove(h)
+                v+=1
+ 
+            
+
+        else:
+            deleted_aciv.append(i)
+
+
+    lines = new_lines
+    ts = new_ts
+    objects = new_objects
+
+
+    for i in deleted_aciv:
+        new_active_obj.append(active_obj[i])
+    
+
+
+    active_obj = new_active_obj
+    redraw()
 
 def optimize_():
     
@@ -1890,8 +2014,7 @@ def pr(selected_files):
 ##########################################
 #############################################
 def test_callback():
-    dpg.delete_item('but2')
-    dpg.add_button(label="asddd",parent='butonss')
+    split_l()
     #redraw()
 ####################################################
 ####################################################
@@ -1998,6 +2121,8 @@ with dpg.viewport_menu_bar():
         dpg.add_menu_item(label="Optimize", callback=optimize_)
         dpg.add_menu_item(label="Normalize", callback=normal_)
         dpg.add_menu_item(label="Rotate X", callback=rotate_x)
+        dpg.add_menu_item(label="Delete", callback=delete_l)
+        dpg.add_menu_item(label="Set Color", callback=set_color)
         dpg.add_menu_item(label="test", callback=test_callback)
 
     with dpg.menu(label="Widget Items"):

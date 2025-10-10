@@ -1,5 +1,13 @@
 import matplotlib.pyplot as plt
 import numpy as np
+def find_intersections(lines1, lines2):
+    intersections = []
+    for (x1, x2) in lines1:
+        for (y1, y2) in lines2:
+            if x1 <= y2 and y1 <= x2:  # Условие пересечения
+                intersections.append(((x1, x2), (y1, y2)))
+    return intersections
+
 
 def draw_hatched_area(rect, circles):
     """
