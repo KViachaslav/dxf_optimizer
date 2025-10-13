@@ -465,7 +465,7 @@ class FileDialog:
             except FileNotFoundError:
                 # Search for the directory in the user's home folder
                 search_path = os.path.expanduser("~/*/" + directory_name)
-                directory_path = glob.glob(search_path)
+                directory_path = glob(search_path)
                 if directory_path:
                     try:
                         # Test access to the found path

@@ -290,6 +290,7 @@ def read_dxf_lines(file_path):
     
     hlines = []
     for line in msp.query('3DFACE'):
+        print(line.dxf.vtx2,line.dxf.vtx3)
         hlines.append({
             'start': (line.dxf.vtx0[0], line.dxf.vtx0[1]),
             'end': (line.dxf.vtx1[0], line.dxf.vtx1[1])
@@ -2103,7 +2104,7 @@ with dpg.theme() as disabled_theme:
     with dpg.theme_component(dpg.mvAll):
         dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 0, 0), category=dpg.mvThemeCat_Core)
 
-fd = FileDialog(callback=pr, show_dir_size=False, modal=False, allow_drag=False,width=800,height=400,filter_list=[".dxf",".png"],)
+fd = FileDialog(callback=pr,width=800,height=400,filter_list=[".dxf",".png"])
 #fd_esyeda = FileDialog(callback=esy_eda)
 
 with dpg.viewport_menu_bar():
